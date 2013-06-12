@@ -1,6 +1,7 @@
 require 'net/http/persistent' # @see http://rubygems.org/gems/net-http-persistent
 require 'rdf'                 # @see http://rubygems.org/gems/rdf
 require 'rdf/ntriples'        # @see http://rubygems.org/gems/rdf
+require 'json'
 
 module SPARQL
   ##
@@ -304,7 +305,6 @@ module SPARQL
     # @return [<RDF::Query::Solutions>]
     # @see    http://www.w3.org/TR/rdf-sparql-json-res/#results
     def self.parse_json_bindings(json, nodes = {})
-      require 'json' unless defined?(::JSON)
       json = JSON.parse(json.to_s) unless json.is_a?(Hash)
       case
         when json.has_key?('boolean')
