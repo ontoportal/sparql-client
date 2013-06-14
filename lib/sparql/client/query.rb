@@ -250,6 +250,14 @@ module SPARQL; class Client
       self
     end
 
+    def union_with_bind_as(*pattern_list)
+      options[:unions_with_bind] ||= []
+      pattern_list.each do |patterns,bind_value,bind_var|
+        options[:unions_with_bind] << [build_patterns(patterns), bind_value,bind_var]
+      end
+      self
+    end
+
     ##
     # @private
     def build_patterns(patterns)
@@ -373,6 +381,17 @@ module SPARQL; class Client
             buffer << '{'
             buffer += serialize_patterns(union_block)
             buffer << '} '
+            include_union = "UNION "
+          end
+        end
+        if options[:unions_with_bind]
+          include_union = nil
+          options[:unions_with_bind].each do |union_block, value_bind, var_bind|
+            buffer << include_union if include_union
+            buffer << '{'
+            buffer += serialize_patterns(union_block)
+            buffer << "BIND (\"#{value_bind}\" as ?#{var_bind.to_s})"
+            buffer << '}'
             include_union = "UNION "
           end
         end
