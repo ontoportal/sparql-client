@@ -305,6 +305,7 @@ module SPARQL
     # @return [<RDF::Query::Solutions>]
     # @see    http://www.w3.org/TR/rdf-sparql-json-res/#results
     def self.parse_json_bindings(json, nodes = {})
+      json.force_encoding(::Encoding::UTF_8) if json.respond_to?(:force_encoding)
       json = JSON.parse(json.to_s) unless json.is_a?(Hash)
       case
         when json.has_key?('boolean')
