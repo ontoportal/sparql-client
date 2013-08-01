@@ -234,6 +234,18 @@ module SPARQL
     # @return [Array<RDF::Query::Solution>]
     # @see    http://www.w3.org/TR/sparql11-protocol/#query-operation
     def query(query, options = {})
+      #TODO less intrusive ?
+      if Thread.current[:ncbo_debug]
+        @op = :query
+        qstart = Time.now
+        r = response(query, options)
+        query_time = Time.now - qstart
+        pstart = Time.now
+        parsed = parse_response(r, options)
+        parse_time = Time.now - pstart
+        (Thread.current[:ncbo_debug][:sparql_queries] ||= []) << [query_time,parse_time]
+        return parsed
+      end
       @op = :query
       parse_response(response(query, options), options)
     end
