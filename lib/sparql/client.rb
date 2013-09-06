@@ -28,6 +28,9 @@ module SPARQL
     ACCEPT_XML  = {'Accept' => RESULT_XML}.freeze
     ACCEPT_BRTR = {'Accept' => RESULT_BRTR}.freeze
 
+    SPARQL_CACHE_QUERIES = "sparql:queries"
+    SPARQL_CACHE_GRAPHS = "sparql:graphs"
+
     DEFAULT_PROTOCOL = 1.0
     DEFAULT_METHOD   = :post
 
@@ -57,6 +60,10 @@ module SPARQL
     # @option options [Hash] :headers
     # @option options [Hash] :read_timeout
     def initialize(url, options = {}, &block)
+      @redis_cache = nil
+      if options[:redis_cache]
+        @redis_cache = options[:redis_cache]
+      end
       @url, @options = RDF::URI.new(url.to_s), options.dup
       #@headers = {
       #  'Accept' => [RESULT_JSON, RESULT_XML, RDF::Format.content_types.keys.map(&:to_s)].join(', ')
@@ -235,6 +242,13 @@ module SPARQL
     # @see    http://www.w3.org/TR/sparql11-protocol/#query-operation
     def query(query, options = {})
       #TODO less intrusive ?
+      if @redis_cache && query.instance_of?(SPARQL::Client::Query)
+        cache_response = @redis_cache.get(query.cache_key)
+        if cache_response
+          return Marshal.load(cache_response)
+        end
+        options[:cache_key] = query.cache_key
+      end
       if Thread.current[:ncbo_debug]
         @op = :query
         qstart = Time.now
@@ -262,6 +276,9 @@ module SPARQL
     def update(query, options = {})
       @op = :update
       options[:op] = :update
+      if @redis_cache
+        query_delete_cache(query) 
+      end
       parse_response(response(query, options), options)
       self
     end
@@ -294,6 +311,51 @@ module SPARQL
       end
     end
 
+    def query_delete_cache(update)
+      if update.options[:graph].nil?
+        raise Exception, "Unsuported cacheable query"
+      end
+      graph = "sparql:graph:#{update.options[:graph].to_s}"
+
+      if @redis_cache.exists(graph)
+        begin
+          #invalidate all the entries
+          #better rename+short expire than delete
+          query_entries = @redis_cache.smembers(graph)
+          @redis_cache.srem(SPARQL_CACHE_QUERIES,query_entries)
+          query_entries.each do |e|
+            if @redis_cache.exists(e)
+              @redis_cache.rename e, "tmp:#{e}"
+              @redis_cache.expire("tmp:#{e}",2)
+            end
+          end
+          if @redis_cache.exists(graph)
+            @redis_cache.rename graph, "tmp:#{graph}"
+            @redis_cache.expire("tmp:#{graph}",2)
+          end
+        rescue => exception
+          puts "warning: error in cache invalidation `#{exception}`"
+          puts exception.backtrace
+        end
+      end
+    end
+
+    def query_put_cache(keys,entry)
+      expiration = 86400 #1 day
+      if defined?(SPARQL_CACHE_EXPIRATION_TIME)
+        expiration = SPARQL_CACHE_EXPIRATION_TIME
+      end
+      @redis_cache.multi do 
+        keys[:graphs].each do |g|
+          @redis_cache.sadd(g,keys[:query])
+          @redis_cache.sadd(SPARQL_CACHE_GRAPHS,g)
+        end
+        @redis_cache.set(keys[:query],Marshal.dump(entry))
+        @redis_cache.sadd(SPARQL_CACHE_QUERIES,keys[:query])
+        @redis_cache.expire(keys[:query],expiration)
+      end
+    end
+
     ##
     # @param  [Net::HTTPSuccess] response
     # @param  [Hash{Symbol => Object}] options
@@ -303,7 +365,11 @@ module SPARQL
         when RESULT_BOOL # Sesame-specific
           response.body == 'true'
         when RESULT_JSON
-          self.class.parse_json_bindings(response.body, nodes)
+          result_data = self.class.parse_json_bindings(response.body, nodes)
+          if options[:cache_key] 
+            query_put_cache(options[:cache_key],result_data)
+          end
+          return result_data
         when RESULT_XML
           #self.class.parse_xml_nokiri(response.body, nodes)
           self.class.parse_xml_bindings(response.body, nodes)
@@ -317,7 +383,7 @@ module SPARQL
     # @return [<RDF::Query::Solutions>]
     # @see    http://www.w3.org/TR/rdf-sparql-json-res/#results
     def self.parse_json_bindings(json, nodes = {})
-      json.force_encoding(::Encoding::UTF_8) if json.respond_to?(:force_encoding)
+      json = json.force_encoding(::Encoding::UTF_8) if json.respond_to?(:force_encoding)
       json = JSON.parse(json.to_s) unless json.is_a?(Hash)
       case
         when json.has_key?('boolean')
@@ -455,6 +521,10 @@ module SPARQL
     # @return [String]
     def inspect
       sprintf("#<%s:%#0x(%s)>", self.class.name, __id__, url.to_s)
+    end
+
+    def redis_cache=(redis_cache)
+      @redis_cache = redis_cache
     end
 
     protected
