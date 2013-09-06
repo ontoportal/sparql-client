@@ -1,3 +1,5 @@
+require 'digest/md5'
+
 module SPARQL; class Client
   ##
   # A SPARQL query builder.
@@ -256,6 +258,17 @@ module SPARQL; class Client
         options[:unions_with_bind] << [build_patterns(patterns), bind_value,bind_var]
       end
       self
+    end
+
+    def cache_key
+      return nil if options[:from].nil? || options[:from].empty?
+      from = options[:from]
+      from = [from] unless from.instance_of?(Array)
+      from = from.map { |x| x.to_s }.uniq.sort
+      sorted_graphs = from.join ":"
+      digest = Digest::MD5.hexdigest(self.to_s)
+      from = from.map { |x| "sparql:graph:#{x}" }
+      return { graphs: from, query: "sparql:#{sorted_graphs}:#{digest}" }
     end
 
     ##
