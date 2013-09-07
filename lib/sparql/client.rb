@@ -243,7 +243,7 @@ module SPARQL
     def query(query, options = {})
       #TODO less intrusive ?
       if @redis_cache && query.instance_of?(SPARQL::Client::Query)
-        cache_response = @redis_cache.get(query.cache_key)
+        cache_response = @redis_cache.get(query.cache_key[:query])
         if cache_response
           return Marshal.load(cache_response)
         end
@@ -315,8 +315,12 @@ module SPARQL
       if update.options[:graph].nil?
         raise Exception, "Unsuported cacheable query"
       end
-      graph = "sparql:graph:#{update.options[:graph].to_s}"
+      cache_invalidate_graph(update.options[:graph].to_s)
+    end
 
+    def cache_invalidate_graph(graph)
+      return if @redis_cache.nil?
+      graph = "sparql:graph:#{graph.to_s}"
       if @redis_cache.exists(graph)
         begin
           #invalidate all the entries
