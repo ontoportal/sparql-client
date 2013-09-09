@@ -10,6 +10,7 @@ module SPARQL
   # @see http://www.w3.org/TR/sparql11-query/
   # @see http://www.w3.org/TR/sparql11-protocol/
   # @see http://www.w3.org/TR/sparql11-results-json/
+  # @see http://www.w3.org/TR/sparql11-results-csv-tsv/
   class Client
     autoload :Query,      'sparql/client/query'
     autoload :Repository, 'sparql/client/repository'
@@ -22,10 +23,14 @@ module SPARQL
 
     RESULT_JSON = 'application/sparql-results+json'.freeze
     RESULT_XML  = 'application/sparql-results+xml'.freeze
+    RESULT_CSV  = 'text/csv'.freeze
+    RESULT_TSV  = 'text/tab-separated-values'.freeze
     RESULT_BOOL = 'text/boolean'.freeze                           # Sesame-specific
     RESULT_BRTR = 'application/x-binary-rdf-results-table'.freeze # Sesame-specific
     ACCEPT_JSON = {'Accept' => RESULT_JSON}.freeze
     ACCEPT_XML  = {'Accept' => RESULT_XML}.freeze
+    ACCEPT_CSV  = {'Accept' => RESULT_CSV}.freeze
+    ACCEPT_TSV  = {'Accept' => RESULT_TSV}.freeze
     ACCEPT_BRTR = {'Accept' => RESULT_BRTR}.freeze
 
     SPARQL_CACHE_QUERIES = "sparql:queries"
@@ -35,9 +40,9 @@ module SPARQL
     DEFAULT_METHOD   = :post
 
     ##
-    # The SPARQL endpoint URL.
+    # The SPARQL endpoint URL, or an RDF::Queryable instance, to use the native SPARQL engine.
     #
-    # @return [RDF::URI]
+    # @return [RDF::URI, RDF::Queryable]
     attr_reader :url
 
     ##
@@ -53,7 +58,12 @@ module SPARQL
     attr_reader :options
 
     ##
-    # @param  [String, #to_s]          url
+    # Initialize a new sparql client, either using the URL of
+    # a SPARQL endpoint or an `RDF::Queryable` instance to use
+    # the native SPARQL gem.
+    #
+    # @param  [String, RDF::Queryable, #to_s]          url
+    #   URL of endpoint, or queryable object.
     # @param  [Hash{Symbol => Object}] options
     # @option options [Symbol] :method (DEFAULT_METHOD)
     # @option options [Number] :protocol (DEFAULT_PROTOCOL)
@@ -64,15 +74,20 @@ module SPARQL
       if options[:redis_cache]
         @redis_cache = options[:redis_cache]
       end
-      @url, @options = RDF::URI.new(url.to_s), options.dup
-      #@headers = {
-      #  'Accept' => [RESULT_JSON, RESULT_XML, RDF::Format.content_types.keys.map(&:to_s)].join(', ')
-      #}.merge(@options.delete(:headers) || {})
-      @headers = {
-        'Accept' => RESULT_JSON.to_s
-        #'Accept' => RESULT_XML.to_s
-      }.merge(@options.delete(:headers) || {})
-      @http = http_klass(@url.scheme)
+      case url
+      when RDF::Queryable
+        @url, @options = url, options.dup
+      else
+        @url, @options = RDF::URI.new(url.to_s), options.dup
+#        @headers = {
+#          'Accept' => [RESULT_JSON, RESULT_XML, "#{RESULT_TSV};p=0.8", "#{RESULT_CSV};p=0.2", RDF::Format.content_types.keys.map(&:to_s)].join(', ')
+#        }.merge(@options.delete(:headers) || {})
+        @headers = {
+          'Accept' => RESULT_JSON.to_s
+          #'Accept' => RESULT_XML.to_s
+        }.merge(@options.delete(:headers) || {})
+        @http = http_klass(@url.scheme)
+      end
 
       if block_given?
         case block.arity
@@ -203,10 +218,19 @@ module SPARQL
     # @example `CLEAR ALL`
     #   client.clear(:all)
     #
-    # @param  [Symbol, #to_sym] what
-    # @param  [Hash{Symbol => Object}] options
-    # @option options [Boolean] :silent
-    # @return [void] `self`
+    # @overload clear(what, *arguments)
+    #   @param  [Symbol, #to_sym] what
+    #   @param  [Array] arguments splat of other arguments to {Update::Clear}.
+    #   @option options [Boolean] :silent
+    #   @return [void] `self`
+    #
+    # @overload clear(what, *arguments, options = {})
+    #   @param  [Symbol, #to_sym] what
+    #   @param  [Array] arguments splat of other arguments to {Update::Clear}.
+    #   @param  [Hash{Symbol => Object}] options
+    #   @option options [Boolean] :silent
+    #   @return [void] `self`
+    #
     # @see    http://www.w3.org/TR/sparql11-update/#clear
     def clear(what, *arguments)
       self.update(Update::Clear.new(what, *arguments))
@@ -261,7 +285,13 @@ module SPARQL
         return parsed
       end
       @op = :query
-      parse_response(response(query, options), options)
+      case @url
+      when RDF::Queryable
+        require 'sparql' unless defined?(::SPARQL::Grammar)
+        SPARQL.execute(query, @url, options)
+      else
+        parse_response(response(query, options), options)
+      end
     end
 
     ##
@@ -279,7 +309,13 @@ module SPARQL
       if @redis_cache
         query_delete_cache(query) 
       end
-      parse_response(response(query, options), options)
+      case @url
+      when RDF::Queryable
+        require 'sparql' unless defined?(::SPARQL::Grammar)
+        SPARQL.execute(query, @url, options)
+      else
+        parse_response(response(query, options), options)
+      end
       self
     end
 
@@ -380,6 +416,10 @@ module SPARQL
         when RESULT_XML
           #self.class.parse_xml_nokiri(response.body, nodes)
           self.class.parse_xml_bindings(response.body, nodes)
+        when RESULT_CSV
+          self.class.parse_csv_bindings(response.body, nodes)
+        when RESULT_TSV
+          self.class.parse_tsv_bindings(response.body, nodes)
         else
           parse_rdf_serialization(response, options)
       end
@@ -427,6 +467,56 @@ module SPARQL
           RDF::Literal.new(value['value'], :datatype => value['datatype'])
         else nil
       end
+    end
+
+    ##
+    # @param  [String, Array<Array<String>>] csv
+    # @return [<RDF::Query::Solutions>]
+    # @see    http://www.w3.org/TR/sparql11-results-csv-tsv/
+    def self.parse_csv_bindings(csv, nodes = {})
+      require 'csv' unless defined?(::CSV)
+      csv = CSV.parse(csv.to_s) unless csv.is_a?(Array)
+      vars = csv.shift
+      solutions = RDF::Query::Solutions.new
+      csv.each do |row|
+        solution = RDF::Query::Solution.new
+        row.each_with_index do |v, i|
+          term = case v
+          when /^_:(.*)$/ then nodes[$1] ||= RDF::Node($1)
+          when /^\w+:.*$/ then RDF::URI(v)
+          else RDF::Literal(v)
+          end
+          solution[vars[i].to_sym] = term
+        end
+        solutions << solution
+      end
+      solutions
+    end
+
+    ##
+    # @param  [String, Array<Array<String>>] tsv
+    # @return [<RDF::Query::Solutions>]
+    # @see    http://www.w3.org/TR/sparql11-results-csv-tsv/
+    def self.parse_tsv_bindings(tsv, nodes = {})
+      tsv = tsv.lines.map {|l| l.chomp.split("\t")} unless tsv.is_a?(Array)
+      vars = tsv.shift.map {|h| h.sub(/^\?/, '')}
+      solutions = RDF::Query::Solutions.new
+      tsv.each do |row|
+        solution = RDF::Query::Solution.new
+        row.each_with_index do |v, i|
+          term = RDF::NTriples.unserialize(v) || case v
+          when /^\d+\.\d*[eE][+-]?[0-9]+$/  then RDF::Literal::Double.new(v)
+          when /^\d*\.\d+[eE][+-]?[0-9]+$/  then RDF::Literal::Double.new(v)
+          when /^\d*\.\d+$/                 then RDF::Literal::Decimal.new(v)
+          when /^\d+$/                      then RDF::Literal::Integer.new(v)
+          else
+            RDF::Literal(v)
+          end
+          solution[vars[i].to_sym] = term
+        end
+        solutions << solution
+      end
+      solutions
     end
 
     ##
@@ -617,7 +707,7 @@ module SPARQL
             request.body = query.to_s
           end
         when '1.0'
-          request.set_form_data(:query => query.to_s)
+          request.set_form_data((@op || :query) => query.to_s)
         else
           raise ArgumentError, "unknown SPARQL protocol version: #{self.options[:protocol].inspect}"
       end
