@@ -318,28 +318,31 @@ module SPARQL
       cache_invalidate_graph(update.options[:graph].to_s)
     end
 
-    def cache_invalidate_graph(graph)
+    def cache_invalidate_graph(graphs)
       return if @redis_cache.nil?
-      graph = "sparql:graph:#{graph.to_s}"
-      if @redis_cache.exists(graph)
-        begin
-          #invalidate all the entries
-          #better rename+short expire than delete
-          query_entries = @redis_cache.smembers(graph)
-          @redis_cache.srem(SPARQL_CACHE_QUERIES,query_entries)
-          query_entries.each do |e|
-            if @redis_cache.exists(e)
-              @redis_cache.rename e, "tmp:#{e}"
-              @redis_cache.expire("tmp:#{e}",2)
+      graphs = [graphs] unless graph.instance_of?(Array)
+      graphs.each do |graph|
+        graph = "sparql:graph:#{graph.to_s}"
+        if @redis_cache.exists(graph)
+          begin
+            #invalidate all the entries
+            #better rename+short expire than delete
+            query_entries = @redis_cache.smembers(graph)
+            @redis_cache.srem(SPARQL_CACHE_QUERIES,query_entries)
+            query_entries.each do |e|
+              if @redis_cache.exists(e)
+                @redis_cache.rename e, "tmp:#{e}"
+                @redis_cache.expire("tmp:#{e}",2)
+              end
             end
+            if @redis_cache.exists(graph)
+              @redis_cache.rename graph, "tmp:#{graph}"
+              @redis_cache.expire("tmp:#{graph}",2)
+            end
+          rescue => exception
+            puts "warning: error in cache invalidation `#{exception}`"
+            puts exception.backtrace
           end
-          if @redis_cache.exists(graph)
-            @redis_cache.rename graph, "tmp:#{graph}"
-            @redis_cache.expire("tmp:#{graph}",2)
-          end
-        rescue => exception
-          puts "warning: error in cache invalidation `#{exception}`"
-          puts exception.backtrace
         end
       end
     end
