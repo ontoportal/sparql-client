@@ -266,7 +266,7 @@ module SPARQL
     # @see    http://www.w3.org/TR/sparql11-protocol/#query-operation
     def query(query, options = {})
       #TODO less intrusive ?
-      if @redis_cache && query.instance_of?(SPARQL::Client::Query)
+      if @redis_cache && !query.options[:bypass_cache] && query.instance_of?(SPARQL::Client::Query)
         cache_response = @redis_cache.get(query.cache_key[:query])
         if cache_response
           return Marshal.load(cache_response)
@@ -306,7 +306,7 @@ module SPARQL
     def update(query, options = {})
       @op = :update
       options[:op] = :update
-      if @redis_cache
+      if @redis_cache && !query.options[:bypass_cache]
         query_delete_cache(query) 
       end
       case @url
