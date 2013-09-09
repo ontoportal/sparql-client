@@ -262,13 +262,18 @@ module SPARQL; class Client
       self
     end
 
+
     def cache_key
       return nil if options[:from].nil? || options[:from].empty?
       from = options[:from]
       from = [from] unless from.instance_of?(Array)
+      return Query.generate_cache_key(self.to_s,from)
+    end
+
+    def self.generate_cache_key(string,from)
       from = from.map { |x| x.to_s }.uniq.sort
       sorted_graphs = from.join ":"
-      digest = Digest::MD5.hexdigest(self.to_s)
+      digest = Digest::MD5.hexdigest(string)
       from = from.map { |x| "sparql:graph:#{x}" }
       return { graphs: from, query: "sparql:#{sorted_graphs}:#{digest}" }
     end

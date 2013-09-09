@@ -266,12 +266,20 @@ module SPARQL
     # @see    http://www.w3.org/TR/sparql11-protocol/#query-operation
     def query(query, options = {})
       #TODO less intrusive ?
-      if @redis_cache && !query.options[:bypass_cache] && query.instance_of?(SPARQL::Client::Query)
-        cache_response = @redis_cache.get(query.cache_key[:query])
-        if cache_response
-          return Marshal.load(cache_response)
+      unless query.respond_to?(:options) && query.options[:bypass_cache]
+        if @redis_cache && (query.instance_of?(SPARQL::Client::Query) || options[:graphs])
+          cache_key = nil
+          if options[:graphs]
+            cache_key = SPARQL::Client::Query.generate_cache_key(query,options[:graphs])
+          else
+            cache_key = query.cache_key
+          end
+          cache_response = @redis_cache.get(cache_key[:query])
+          if cache_response
+            return Marshal.load(cache_response)
+          end
+          options[:cache_key] = cache_key
         end
-        options[:cache_key] = query.cache_key
       end
       if Thread.current[:ncbo_debug]
         @op = :query
@@ -356,7 +364,7 @@ module SPARQL
 
     def cache_invalidate_graph(graphs)
       return if @redis_cache.nil?
-      graphs = [graphs] unless graph.instance_of?(Array)
+      graphs = [graphs] unless graphs.instance_of?(Array)
       graphs.each do |graph|
         graph = "sparql:graph:#{graph.to_s}"
         if @redis_cache.exists(graph)
