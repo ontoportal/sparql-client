@@ -391,6 +391,26 @@ module SPARQL
       end
     end
 
+    def cache_invalidate_all
+      return if @redis_cache.nil?
+      to_delete = []
+      all_queries = @redis_cache.smembers(SPARQL_CACHE_QUERIES)
+      all_graphs = @redis_cache.smembers(SPARQL_CACHE_GRAPHS)
+      @redis_cache.del(SPARQL_CACHE_QUERIES)
+      @redis_cache.del(SPARQL_CACHE_GRAPHS)
+
+      puts "deleting #{all_queries.length} query entries"
+      all_queries.each_slice(500_000) do |query_keys|
+        @redis_cache.del query_keys
+      end
+      puts "deleting #{all_graphs.length} graph entries"
+      all_graphs.each_slice(500_000) do |query_graphs|
+         @redis_cache.del query_graphs
+      end
+      puts "done with the cache deletion"
+    end
+
+
     def query_put_cache(keys,entry)
       expiration = 86400 #1 day
       if defined?(SPARQL_CACHE_EXPIRATION_TIME)

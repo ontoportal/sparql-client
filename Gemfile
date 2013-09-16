@@ -3,6 +3,7 @@ source "https://rubygems.org"
 gemspec :name => ""
 
 gem "jruby-openssl", :platforms => :jruby
+gem 'cube-ruby'
 
 group :debug do
   gem 'shotgun'
