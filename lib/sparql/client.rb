@@ -2,6 +2,7 @@ require 'net/http/persistent' # @see http://rubygems.org/gems/net-http-persisten
 require 'rdf'                 # @see http://rubygems.org/gems/rdf
 require 'rdf/ntriples'        # @see http://rubygems.org/gems/rdf
 require 'json'
+require 'cube'
 
 module SPARQL
   ##
@@ -73,6 +74,10 @@ module SPARQL
       @redis_cache = nil
       if options[:redis_cache]
         @redis_cache = options[:redis_cache]
+      end
+      @cube = nil
+      if options[:cube_options]
+        cube_options=options[:cube_options]
       end
       case url
       when RDF::Queryable
@@ -266,6 +271,7 @@ module SPARQL
     # @see    http://www.w3.org/TR/sparql11-protocol/#query-operation
     def query(query, options = {})
       #TODO less intrusive ?
+      start = Time.now
       unless query.respond_to?(:options) && query.options[:bypass_cache]
         if @redis_cache && (query.instance_of?(SPARQL::Client::Query) || options[:graphs])
           cache_key = nil
@@ -276,6 +282,10 @@ module SPARQL
           end
           cache_response = @redis_cache.get(cache_key[:query])
           if cache_response
+            if @cube 
+              @cube.send("goo_cache_hit", DateTime.now, 
+                duration_ms: ((Time.now - start)*1000).ceil) rescue nil
+            end
             return Marshal.load(cache_response)
           end
           options[:cache_key] = cache_key
@@ -315,6 +325,11 @@ module SPARQL
       if Thread.current[:ncbo_debug]
         (Thread.current[:ncbo_debug][:sparql_queries] ||= []) << [query_time,parse_time]
       end
+      if @cube 
+        @cube.send("goo_query_hit", DateTime.now, 
+          duration_ms: ((Time.now - start)*1000).ceil,
+          query: query.to_s) rescue nil
+      end
       return parsed
       #@op = :query
       #case @url
@@ -346,7 +361,13 @@ module SPARQL
         require 'sparql' unless defined?(::SPARQL::Grammar)
         SPARQL.execute(query, @url, options)
       else
+        start = Time.now
         parse_response(response(query, options), options)
+        if @cube 
+            @cube.send("sparql_write_data", DateTime.now, 
+              duration_ms: ((Time.now - start)*1000).ceil,
+              type_write: query.class.name.split("::")[-1].downcase) rescue nil
+        end
       end
       self
     end
@@ -462,7 +483,9 @@ module SPARQL
         when RESULT_JSON
           result_data = self.class.parse_json_bindings(response.body, nodes)
           if options[:cache_key] 
-            query_put_cache(options[:cache_key],result_data)
+            if options[:cache_key]
+              query_put_cache(options[:cache_key],result_data)
+            end
           end
           return result_data
         when RESULT_XML
@@ -674,6 +697,16 @@ module SPARQL
 
     def redis_cache=(redis_cache)
       @redis_cache = redis_cache
+    end
+
+    def cube_options=(cube_options)
+      if cube_options
+        cube_host = cube_options[:host] || "localhost"
+        cube_port = cube_options[:port] || 1180
+        @cube = Cube::Client.new(cube_host, cube_port)
+      else
+        @cube = nil
+      end
     end
 
     protected
