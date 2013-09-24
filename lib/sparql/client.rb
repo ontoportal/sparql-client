@@ -385,6 +385,9 @@ module SPARQL
       op = options[:op] || :query
       headers = options[:headers] || {}
       query_options = (query.is_a?(Query) && query.options[:query_options]) || nil
+      unless query_options
+        query_options = (query.is_a?(String) && options[:query_options]) || nil
+      end
       headers['Accept'] = options[:content_type] if options[:content_type]
       request(query,op,headers,query_options) do |response|
         case response
