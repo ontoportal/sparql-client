@@ -415,7 +415,7 @@ module SPARQL
       graphs = [graphs] unless graphs.instance_of?(Array)
       graphs.each do |graph|
         graph = graph.to_s
-        graph = "sparql:graph:#{graph}" if graph.start_with?("sparql:graph:")
+        graph = "sparql:graph:#{graph}" unless graph.start_with?("sparql:graph:")
         if @redis_cache.exists(graph)
           begin
             query_entries = @redis_cache.smembers(graph)
