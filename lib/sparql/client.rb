@@ -414,23 +414,16 @@ module SPARQL
       return if @redis_cache.nil?
       graphs = [graphs] unless graphs.instance_of?(Array)
       graphs.each do |graph|
-        graph = "sparql:graph:#{graph.to_s}"
+        graph = graph.to_s
+        graph = "sparql:graph:#{graph}" if graph.start_with?("sparql:graph:")
         if @redis_cache.exists(graph)
           begin
-            #invalidate all the entries
-            #better rename+short expire than delete
             query_entries = @redis_cache.smembers(graph)
             @redis_cache.srem(SPARQL_CACHE_QUERIES,query_entries)
             query_entries.each do |e|
-              if @redis_cache.exists(e)
-                @redis_cache.rename e, "tmp:#{e}"
-                @redis_cache.expire("tmp:#{e}",2)
-              end
+              @redis_cache.del(e)
             end
-            if @redis_cache.exists(graph)
-              @redis_cache.rename graph, "tmp:#{graph}"
-              @redis_cache.expire("tmp:#{graph}",2)
-            end
+            @redis_cache.del(graph)
           rescue => exception
             puts "warning: error in cache invalidation `#{exception}`"
             puts exception.backtrace
