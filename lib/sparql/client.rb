@@ -453,7 +453,7 @@ module SPARQL
 
 
     def query_put_cache(keys,entry)
-      expiration = 86400 #1 day
+      expiration = 5 * 86400 #5 day
       if defined?(SPARQL_CACHE_EXPIRATION_TIME)
         expiration = SPARQL_CACHE_EXPIRATION_TIME
       end
