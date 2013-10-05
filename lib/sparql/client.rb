@@ -282,11 +282,20 @@ module SPARQL
           end
           cache_response = @redis_cache.get(cache_key[:query])
           if cache_response
-            if @cube 
-              @cube.send("goo_cache_hit", DateTime.now, 
-                duration_ms: ((Time.now - start)*1000).ceil) rescue nil
+            cache_key[:graphs].each do |g|
+              unless @redis_cache.sismember(g,cache_key[:query])
+                @redis_cache.del(cache_key[:query])
+                cache_response = nil
+                break
+              end
             end
-            return Marshal.load(cache_response)
+            if cache_response
+              if @cube 
+                @cube.send("goo_cache_hit", DateTime.now, 
+                  duration_ms: ((Time.now - start)*1000).ceil) rescue nil
+              end
+              return Marshal.load(cache_response)
+            end
           end
           options[:cache_key] = cache_key
         end
