@@ -767,6 +767,8 @@ module SPARQL
 
       request.basic_auth(url.user, url.password) if url.user && !url.user.empty?
 
+      @http.open_timeout = @http.read_timeout
+      @http.idle_timeout = nil
       response = @http.request(url, request)
       if block_given?
         block.call(response)
