@@ -34,9 +34,6 @@ module SPARQL
     ACCEPT_TSV  = {'Accept' => RESULT_TSV}.freeze
     ACCEPT_BRTR = {'Accept' => RESULT_BRTR}.freeze
 
-    SPARQL_CACHE_QUERIES = "sparql:queries"
-    SPARQL_CACHE_GRAPHS = "sparql:graphs"
-
     DEFAULT_PROTOCOL = 1.0
     DEFAULT_METHOD   = :post
 
@@ -429,11 +426,6 @@ module SPARQL
           graph = "sparql:graph:#{graph}" unless graph.start_with?("sparql:graph:")
           if @redis_cache.exists(graph)
             begin
-              query_entries = @redis_cache.smembers(graph)
-              @redis_cache.srem(SPARQL_CACHE_QUERIES,query_entries)
-              query_entries.each do |e|
-                @redis_cache.del(e)
-              end
               @redis_cache.del(graph)
             rescue => exception
               puts "warning: error in cache invalidation `#{exception}`"
@@ -450,38 +442,13 @@ module SPARQL
       end
     end
 
-    def cache_invalidate_all
-      return if @redis_cache.nil?
-      to_delete = []
-      all_queries = @redis_cache.smembers(SPARQL_CACHE_QUERIES)
-      all_graphs = @redis_cache.smembers(SPARQL_CACHE_GRAPHS)
-      @redis_cache.del(SPARQL_CACHE_QUERIES)
-      @redis_cache.del(SPARQL_CACHE_GRAPHS)
-
-      puts "deleting #{all_queries.length} query entries"
-      all_queries.each_slice(500_000) do |query_keys|
-        @redis_cache.del query_keys
-      end
-      puts "deleting #{all_graphs.length} graph entries"
-      all_graphs.each_slice(500_000) do |query_graphs|
-         @redis_cache.del query_graphs
-      end
-      puts "done with the cache deletion"
-    end
-
-
     def query_put_cache(keys,entry)
-      expiration = 5 * 86400 #5 day
-      if defined?(SPARQL_CACHE_EXPIRATION_TIME)
-        expiration = SPARQL_CACHE_EXPIRATION_TIME
-      end
+      expiration = 1 * 86400 #1 day
       @redis_cache.multi do 
         keys[:graphs].each do |g|
           @redis_cache.sadd(g,keys[:query])
-          @redis_cache.sadd(SPARQL_CACHE_GRAPHS,g)
         end
         @redis_cache.set(keys[:query],Marshal.dump(entry))
-        @redis_cache.sadd(SPARQL_CACHE_QUERIES,keys[:query])
         @redis_cache.expire(keys[:query],expiration)
       end
     end
