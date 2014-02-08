@@ -299,34 +299,10 @@ module SPARQL
       end
       @op = :query
       qstart = Time.now
-      if query.to_s["strbefore"]
-        options[:content_type] = "text/plain"
-      end
       r = response(query, options)
       query_time = Time.now - qstart
       pstart = Time.now
       parsed = parse_response(r, options)
-      if !query.to_s["strbefore"]
-      else
-        if r.body
-          line = 0
-          parsed = {}
-          r.body.split("\n").each do |x|
-            line += 1
-            next if line == 1
-            acr = x[1..-2] 
-            unless parsed.include?(acr)
-              parsed[acr] = 0
-            end
-            parsed[acr] += 1
-          end
-          if options[:cache_key]
-            query_put_cache(options[:cache_key],parsed)
-          end
-        else
-          raise Exception, "SPARQL: error returning mapping stats"
-        end
-      end
       parse_time = Time.now - pstart
       if Thread.current[:ncbo_debug]
         (Thread.current[:ncbo_debug][:sparql_queries] ||= []) << [query_time,parse_time]
