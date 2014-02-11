@@ -272,8 +272,9 @@ module SPARQL
       unless query.respond_to?(:options) && query.options[:bypass_cache]
         if @redis_cache && (query.instance_of?(SPARQL::Client::Query) || options[:graphs])
           cache_key = nil
-          if options[:graphs]
-            cache_key = SPARQL::Client::Query.generate_cache_key(query,options[:graphs])
+          if options[:graphs] || query.options[:graphs]
+            cache_key = SPARQL::Client::Query.generate_cache_key(query.to_s,
+                          options[:graphs] || query.options[:graphs])
           else
             cache_key = query.cache_key
           end
