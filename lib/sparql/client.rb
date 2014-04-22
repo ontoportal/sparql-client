@@ -26,6 +26,7 @@ module SPARQL
     RESULT_XML  = 'application/sparql-results+xml'.freeze
     RESULT_CSV  = 'text/csv'.freeze
     RESULT_TSV  = 'text/tab-separated-values'.freeze
+    RESULT_PLAIN  = 'text/plain'.freeze
     RESULT_BOOL = 'text/boolean'.freeze                           # Sesame-specific
     RESULT_BRTR = 'application/x-binary-rdf-results-table'.freeze # Sesame-specific
     ACCEPT_JSON = {'Accept' => RESULT_JSON}.freeze
@@ -453,6 +454,8 @@ module SPARQL
           self.class.parse_csv_bindings(response.body, nodes)
         when RESULT_TSV
           self.class.parse_tsv_bindings(response.body, nodes)
+        when RESULT_PLAIN
+          self.class.parse_plain_bindings(response.body, nodes)
         else
           parse_rdf_serialization(response, options)
       end
@@ -555,6 +558,10 @@ module SPARQL
         solutions << solution
       end
       solutions
+    end
+
+    def self.parse_plain_bindings(plain, nodes = {})
+      return plain
     end
 
     ##
