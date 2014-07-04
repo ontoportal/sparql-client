@@ -289,8 +289,8 @@ module SPARQL
               end
             end
             if cache_response
-              if @cube
-                @cube.send("goo_cache_hit", DateTime.now,
+              if @cube 
+                @cube.send("goo_cache_hit", DateTime.now, 
                   duration_ms: ((Time.now - start)*1000).ceil) rescue nil
               end
               return Marshal.load(cache_response)
@@ -309,8 +309,8 @@ module SPARQL
       if Thread.current[:ncbo_debug]
         (Thread.current[:ncbo_debug][:sparql_queries] ||= []) << [query_time,parse_time]
       end
-      if @cube
-        @cube.send("goo_query_hit", DateTime.now,
+      if @cube 
+        @cube.send("goo_query_hit", DateTime.now, 
           duration_ms: ((Time.now - start)*1000).ceil,
           query: query.to_s) rescue nil
       end
@@ -337,8 +337,8 @@ module SPARQL
     def update(query, options = {})
       @op = :update
       options[:op] = :update
-      if @redis_cache && (!query.respond_to?(:options) || !query.options[:bypass_cache])
-        query_delete_cache(query)
+      if @redis_cache && !query.options[:bypass_cache]
+        query_delete_cache(query) 
       end
       case @url
       when RDF::Queryable
@@ -347,8 +347,8 @@ module SPARQL
       else
         start = Time.now
         parse_response(response(query, options), options)
-        if @cube
-            @cube.send("sparql_write_data", DateTime.now,
+        if @cube 
+            @cube.send("sparql_write_data", DateTime.now, 
               duration_ms: ((Time.now - start)*1000).ceil,
               type_write: query.class.name.split("::")[-1].downcase) rescue nil
         end
@@ -439,7 +439,7 @@ module SPARQL
           response.body == 'true'
         when RESULT_JSON
           result_data = self.class.parse_json_bindings(response.body, nodes)
-          if options[:cache_key]
+          if options[:cache_key] 
             if options[:cache_key]
               query_put_cache(options[:cache_key],result_data)
             end
