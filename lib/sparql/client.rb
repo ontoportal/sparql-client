@@ -271,7 +271,8 @@ module SPARQL
       #TODO less intrusive ?
       start = Time.now
       unless query.respond_to?(:options) && query.options[:bypass_cache]
-        if @redis_cache && (query.instance_of?(SPARQL::Client::Query) || options[:graphs])
+        if @redis_cache && (query.instance_of?(SPARQL::Client::Query) ||
+                            options[:graphs])
           cache_key = nil
           if options[:graphs] || query.options[:graphs]
             cache_key = SPARQL::Client::Query.generate_cache_key(query.to_s,
@@ -280,6 +281,10 @@ module SPARQL
             cache_key = query.cache_key
           end
           cache_response = @redis_cache.get(cache_key[:query])
+          if options[:reload_cache] and options[:reload_cache] == true
+              @redis_cache.del(cache_key[:query])
+              cache_response = nil
+          end
           if cache_response
             cache_key[:graphs].each do |g|
               unless @redis_cache.sismember(g,cache_key[:query])
