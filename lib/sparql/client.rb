@@ -426,12 +426,12 @@ module SPARQL
     end
 
     def query_put_cache(keys,entry)
-      expiration = 1 * 86400 #1 day
+      #expiration = 1800 #1/2 hour
       keys[:graphs].each do |g|
         @redis_cache.sadd(g,keys[:query])
       end
       @redis_cache.set(keys[:query],Marshal.dump(entry))
-      @redis_cache.expire(keys[:query],expiration)
+      #@redis_cache.expire(keys[:query],expiration)
     end
 
     ##
