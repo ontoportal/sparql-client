@@ -427,10 +427,15 @@ module SPARQL
 
     def query_put_cache(keys,entry)
       #expiration = 1800 #1/2 hour
+      data = Marshal.dump(entry)
+      if data.length > 2e6 #2MB of marshal object
+        #avoid large entries to go in the cache
+        return
+      end
       keys[:graphs].each do |g|
         @redis_cache.sadd(g,keys[:query])
       end
-      @redis_cache.set(keys[:query],Marshal.dump(entry))
+      @redis_cache.set(keys[:query],data)
       #@redis_cache.expire(keys[:query],expiration)
     end
 
