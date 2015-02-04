@@ -295,12 +295,8 @@ module SPARQL
             puts "#CACHE LEVEL 1 #{cache_response != nil}"
             if cache_response != nil
               x = Marshal.load(cache_response)
-              if x.respond_to?(:each)
-                x.each do |sol|
-                  puts sol.inspect
-                end
-              else
-                puts x
+              x.each do |sol|
+                puts sol.inspect
               end
             end
           end
