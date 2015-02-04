@@ -280,42 +280,17 @@ module SPARQL
           else
             cache_key = query.cache_key
           end
-          if $DEBUG_GOO_CACHE
-            puts "#CACHE QUERY"
-            puts query.to_s
-            puts "#CACHE KEY"
-            puts cache_key
-          end
           cache_response = @redis_cache.get(cache_key[:query])
           if options[:reload_cache] and options[:reload_cache] == true
               @redis_cache.del(cache_key[:query])
               cache_response = nil
           end
-          if $DEBUG_GOO_CACHE
-            puts "#CACHE LEVEL 1 #{cache_response != nil}"
-            if cache_response != nil
-              x = Marshal.load(cache_response)
-              x.each do |sol|
-                puts sol.inspect
-              end
-            end
-          end
           if cache_response
-            if $DEBUG_GOO_CACHE
-              puts "#CACHE LEVEL 2"
-            end
             cache_key[:graphs].each do |g|
               unless @redis_cache.sismember(g,cache_key[:query])
-                if $DEBUG_GOO_CACHE
-                  puts "#CACHE LEVEL 2 not in graph set #{g}"
-                end
                 @redis_cache.del(cache_key[:query])
                 cache_response = nil
                 break
-              else
-                if $DEBUG_GOO_CACHE
-                  puts "#CACHE LEVEL 2 OK graph set #{g}"
-                end
               end
             end
             if cache_response
@@ -337,8 +312,7 @@ module SPARQL
       parsed = parse_response(r, options)
       parse_time = Time.now - pstart
       if Thread.current[:ncbo_debug]
-        (Thread.current[:ncbo_debug][:sparql_queries] ||= []) <<
-          [query_time,parse_time]
+        (Thread.current[:ncbo_debug][:sparql_queries] ||= []) << [query_time,parse_time]
       end
       if @cube 
         @cube.send("goo_query_hit", DateTime.now, 
@@ -346,6 +320,14 @@ module SPARQL
           query: query.to_s) rescue nil
       end
       return parsed
+      #@op = :query
+      #case @url
+      #when RDF::Queryable
+      #  require 'sparql' unless defined?(::SPARQL::Grammar)
+      #  SPARQL.execute(query, @url, options)
+      #else
+      #  parse_response(response(query, options), options)
+      #end
     end
 
     ##
