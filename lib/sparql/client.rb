@@ -69,6 +69,7 @@ module SPARQL
     # @option options [Hash] :headers
     # @option options [Hash] :read_timeout
     def initialize(url, options = {}, &block)
+      @logger = options[:logger] ||= Kernel.const_defined?("LOGGER") ? Kernel.const_get("LOGGER") : Logger.new(STDOUT)
       @redis_cache = nil
       if options[:redis_cache]
         @redis_cache = options[:redis_cache]
@@ -428,7 +429,7 @@ module SPARQL
     def query_put_cache(keys,entry)
       #expiration = 1800 #1/2 hour
       data = Marshal.dump(entry)
-      if data.length > 2e6 #2MB of marshal object
+      if data.length > 10e6 #10MB of marshal object
         #avoid large entries to go in the cache
         return
       end
@@ -450,9 +451,7 @@ module SPARQL
         when RESULT_JSON
           result_data = self.class.parse_json_bindings(response.body, nodes)
           if options[:cache_key] 
-            if options[:cache_key]
-              query_put_cache(options[:cache_key],result_data)
-            end
+            query_put_cache(options[:cache_key],result_data)
           end
           return result_data
         when RESULT_XML
