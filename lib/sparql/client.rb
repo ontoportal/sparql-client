@@ -269,6 +269,11 @@ module SPARQL
     # @return [Array<RDF::Query::Solution>]
     # @see    http://www.w3.org/TR/sparql11-protocol/#query-operation
     def query(query, options = {})
+      # pat = /SELECT\s+\(\s*COUNT\(DISTINCT\s+\?id\)\s+AS\s+\?count_var\s*\)\s+FROM\s+\<http:\/\/data\.bioontology\.org\/ontologies\/[\w\d\-\_]+\/submissions\/\d+\>\s+WHERE\s+{\s+\?id\s+a\s+\<http:\/\/www\.w3\.org\/2002\/07\/owl\#Class>\s+\.\s+}/
+      # if query && (query.to_s =~ pat) != nil
+      #   @logger.info("#{query.to_s}")
+      #   @logger.info(caller.join("\n\t"))
+      # end
       #TODO less intrusive ?
       start = Time.now
       unless query.respond_to?(:options) && query.options[:bypass_cache]
