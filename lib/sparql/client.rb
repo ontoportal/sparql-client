@@ -434,7 +434,7 @@ module SPARQL
     def query_put_cache(keys,entry)
       #expiration = 1800 #1/2 hour
       data = Marshal.dump(entry)
-      if data.length > 10e6 #10MB of marshal object
+      if data.length > 50e6 #50MB of marshal object
         #avoid large entries to go in the cache
         return
       end
