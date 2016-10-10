@@ -29,7 +29,7 @@ Gem::Specification.new do |gem|
   gem.required_ruby_version      = '>= 1.8.1'
   gem.requirements               = []
   gem.add_runtime_dependency     'rdf',       '>= 1.0'
-  gem.add_runtime_dependency     'net-http-persistent', '>= 1.4'
+  gem.add_runtime_dependency     'net-http-persistent', '2.9.4'
   gem.add_runtime_dependency     'json_pure', '>= 1.4'
   gem.add_development_dependency 'sparql',    '>= 1.0' unless RUBY_VERSION < "1.9"
   gem.add_development_dependency 'rdf-spec',  '>= 1.0'
