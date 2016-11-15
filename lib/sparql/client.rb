@@ -455,9 +455,31 @@ module SPARQL
           response.body == 'true'
         when RESULT_JSON
           result_data = self.class.parse_json_bindings(response.body, nodes)
-          if options[:cache_key] 
+
+
+
+          if response.body == "{\"head\":{\"vars\":[\"g\", \"c\"]},\"results\":{\"bindings\":[\n {\"c\":{\"type\":\"literal\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#integer\", \"value\":\"0\"}}]}}"
+            result_data = []
+          end
+
+
+
+          if options[:cache_key]
             query_put_cache(options[:cache_key],result_data)
           end
+
+
+
+          # binding.pry if response.body == "{\"head\":{\"vars\":[\"g\", \"c\"]},\"results\":{\"bindings\":[\n {\"c\":{\"type\":\"literal\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#integer\", \"value\":\"0\"}}]}}"
+          # binding.pry if response.body == "{\"head\":{\"vars\":[\"g\",\"c\"]},\n \"results\": {\n  \"bindings\":[]\n }}\n"
+
+
+
+          # if result_data.length == 1 && !result_data[0][:c].nil? && result_data[0][:c].is_a?(RDF::Literal::Integer) && result_data[0][:c].value == "0"
+          #   result_data = []
+          # end
+
+
           return result_data
         when RESULT_XML
           #self.class.parse_xml_nokiri(response.body, nodes)
@@ -728,11 +750,20 @@ module SPARQL
       method = (self.options[:method] || DEFAULT_METHOD).to_sym
       request = send("make_#{method}_request", query,op , headers, query_options)
 
-      request.basic_auth(url.user, url.password) if url.user && !url.user.empty?
+      # request.basic_auth(url.user, url.password) if url.user && !url.user.empty?
 
       @http.open_timeout = @http.read_timeout
       @http.idle_timeout = nil
+
+
       response = @http.request(url, request)
+
+
+
+      # binding.pry if query == "      SELECT ?g (count(?s1) as ?c)\n      WHERE {\n      {\n  GRAPH <http://data.bioontology.org/ontologies/MAPPING_TEST1/submissions/11> {\n      ?s1 <http://bioportal.bioontology.org/ontologies/umls/cui> ?o .\n  }\n  GRAPH ?g {\n      ?s2 <http://bioportal.bioontology.org/ontologies/umls/cui> ?o .\n  }\n}\n\n      FILTER (?s1 != ?s2)\nFILTER (!STRSTARTS(str(?g),'http://data.bioontology.org/ontologies/MAPPING_TEST1'))\n      } GROUP BY ?g\n"
+
+
+
       if block_given?
         block.call(response)
       else
