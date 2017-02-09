@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-gemspec :name => ""
+gemspec
 
 gem "jruby-openssl", :platforms => :jruby
 gem 'cube-ruby', require: "cube"
