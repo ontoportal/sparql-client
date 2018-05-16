@@ -2,9 +2,8 @@
 # -*- encoding: utf-8 -*-
 
 Gem::Specification.new do |gem|
-  gem.version            = File.read('VERSION').chomp
-  gem.date               = File.mtime('VERSION').strftime('%Y-%m-%d')
-
+  gem.version            = '1.0.1'
+  gem.date               = '2012-11-21'
   gem.name               = 'sparql-client'
   gem.homepage           = 'http://ruby-rdf.github.com/sparql-client/'
   gem.license            = 'Public Domain' if gem.respond_to?(:license=)
