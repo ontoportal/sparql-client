@@ -426,7 +426,7 @@ module SPARQL; class Client
 
 
 
-            # buffer += patterns.map { |pattern| "FILTER(#{pattern.options[:filter]})" if pattern.options && pattern.options[:filter] }
+            buffer += patterns.map { |pattern| "FILTER(#{pattern.options[:filter]})" if pattern.options && pattern.options[:filter] }
 
 
 
