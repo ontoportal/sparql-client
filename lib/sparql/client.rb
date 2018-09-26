@@ -318,8 +318,7 @@ module SPARQL
       parsed = parse_response(r, options)
       parse_time = Time.now - pstart
       if Thread.current[:ncbo_debug]
-        @logger.info("************************* Query *************************")
-        @logger.info(query.to_s)
+        @logger.info("************************* Query *************************\n#{query.to_s}")
         @logger.info("************************ Duration ***********************")
         @logger.info("#{Time.now - start} sec.\n")
         (Thread.current[:ncbo_debug][:sparql_queries] ||= []) << [query_time,parse_time]
