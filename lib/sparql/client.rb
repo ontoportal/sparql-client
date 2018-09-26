@@ -318,13 +318,16 @@ module SPARQL
       parsed = parse_response(r, options)
       parse_time = Time.now - pstart
       if Thread.current[:ncbo_debug]
+        @logger.info("************************* Query *************************\n#{query.to_s}")
+        @logger.info("************************ Duration ***********************")
+        @logger.info("#{Time.now - start} sec.\n")
         (Thread.current[:ncbo_debug][:sparql_queries] ||= []) << [query_time,parse_time]
       end
-      if @cube 
-        @cube.send("goo_query_hit", DateTime.now, 
-          duration_ms: ((Time.now - start)*1000).ceil,
-          query: query.to_s) rescue nil
-      end
+      # if @cube
+      #   @cube.send("goo_query_hit", DateTime.now,
+      #     duration_ms: ((Time.now - start)*1000).ceil,
+      #     query: query.to_s) rescue nil
+      # end
       return parsed
       #@op = :query
       #case @url
