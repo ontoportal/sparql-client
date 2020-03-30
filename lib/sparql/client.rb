@@ -458,31 +458,36 @@ module SPARQL
           response.body == 'true'
         when RESULT_JSON
           result_data = self.class.parse_json_bindings(response.body, nodes)
-
-
+          # This is a special case for AG, in which results_data gets set to nil when an Integer value is 0
+          # This is evident when running the test_mappings of ontologies_linked_data. The error is included below:
+          #
+          # Problem with custom id generation: comparison of String with nil failed (Goo::Base::IDGenerationError)
+          #   /dev/ncbo/goo/lib/goo/base/resource.rb:92:in `rescue in id'
+          # 	/dev/ncbo/goo/lib/goo/base/resource.rb:89:in `id'
+          # 	/dev/ncbo/goo/lib/goo/sparql/triples.rb:50:in `model_update_triples'
+          # 	/dev/ncbo/goo/lib/goo/base/resource.rb:336:in `save'
+          # 	/dev/ncbo/ontologies_linked_data/lib/ontologies_linked_data/models/base.rb:13:in `save'
+          # 	/dev/ncbo/ontologies_linked_data/lib/ontologies_linked_data/mappings/mappings.rb:751:in `block (2 levels) in create_mapping_counts'
+          # 	/dev/ncbo/ontologies_linked_data/lib/ontologies_linked_data/mappings/mappings.rb:737:in `each_key'
+          # 	/dev/ncbo/ontologies_linked_data/lib/ontologies_linked_data/mappings/mappings.rb:737:in `block in create_mapping_counts'
+          # 	/dev/ncbo/ontologies_linked_data/lib/ontologies_linked_data/mappings/mappings.rb:720:in `each'
+          # 	/dev/ncbo/ontologies_linked_data/lib/ontologies_linked_data/mappings/mappings.rb:720:in `create_mapping_counts'
+          # 	/dev/ncbo/ontologies_linked_data/test/models/test_mappings.rb:40:in `ontologies_parse'
+          # 	/dev/ncbo/ontologies_linked_data/test/models/test_mappings.rb:15:in `before_suite'
+          # 	/dev/ncbo/ontologies_linked_data/test/test_case.rb:70:in `_run_suite'
 
           if response.body == "{\"head\":{\"vars\":[\"g\", \"c\"]},\"results\":{\"bindings\":[\n {\"c\":{\"type\":\"literal\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#integer\", \"value\":\"0\"}}]}}"
+          # if result_data.length == 1 && !result_data[0][:c].nil? && result_data[0][:c].is_a?(RDF::Literal::Integer) && result_data[0][:c].value == "0"
+          # if response.body.to_s.include? "\"type\":\"literal\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#integer\", \"value\":\"0\""
             result_data = []
           end
-
-
 
           if options[:cache_key]
             query_put_cache(options[:cache_key],result_data)
           end
 
-
-
           # binding.pry if response.body == "{\"head\":{\"vars\":[\"g\", \"c\"]},\"results\":{\"bindings\":[\n {\"c\":{\"type\":\"literal\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#integer\", \"value\":\"0\"}}]}}"
           # binding.pry if response.body == "{\"head\":{\"vars\":[\"g\",\"c\"]},\n \"results\": {\n  \"bindings\":[]\n }}\n"
-
-
-
-          # if result_data.length == 1 && !result_data[0][:c].nil? && result_data[0][:c].is_a?(RDF::Literal::Integer) && result_data[0][:c].value == "0"
-          #   result_data = []
-          # end
-
-
           return result_data
         when RESULT_XML
           #self.class.parse_xml_nokiri(response.body, nodes)
@@ -753,20 +758,11 @@ module SPARQL
       method = (self.options[:method] || DEFAULT_METHOD).to_sym
       request = send("make_#{method}_request", query,op , headers, query_options)
 
-      # request.basic_auth(url.user, url.password) if url.user && !url.user.empty?
+      request.basic_auth(url.user, url.password) if url.user && !url.user.empty?
 
       @http.open_timeout = @http.read_timeout
       @http.idle_timeout = nil
-
-
       response = @http.request(url, request)
-
-
-
-      # binding.pry if query == "      SELECT ?g (count(?s1) as ?c)\n      WHERE {\n      {\n  GRAPH <http://data.bioontology.org/ontologies/MAPPING_TEST1/submissions/11> {\n      ?s1 <http://bioportal.bioontology.org/ontologies/umls/cui> ?o .\n  }\n  GRAPH ?g {\n      ?s2 <http://bioportal.bioontology.org/ontologies/umls/cui> ?o .\n  }\n}\n\n      FILTER (?s1 != ?s2)\nFILTER (!STRSTARTS(str(?g),'http://data.bioontology.org/ontologies/MAPPING_TEST1'))\n      } GROUP BY ?g\n"
-
-
-
       if block_given?
         block.call(response)
       else

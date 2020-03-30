@@ -420,19 +420,15 @@ module SPARQL; class Client
           options[:optionals].each do |patterns|
             buffer << 'OPTIONAL {'
             buffer += serialize_patterns(patterns)
-
-
-
-
-
-
+            # This is added to move the filters into the OPTIONAL clauses. Based by this comment from AG:
+            # Because the FILTERs are _outside_ the OPTIONALs, they are applied to _every_
+            # row returned. i.e., only rows where ?rewrite0 is in its list _and_ ?rewrite1
+            # is in its list will be returned. I.e., the query will return NO results where
+            # ?rewrite0 or ?rewrite1 is NULL.
+            #
+            # All you need to do is to make sure that the FILTERS are applied only _inside_
+            # each OPTIONAL. For example, this query will do what you want:
             buffer += patterns.map { |pattern| "FILTER(#{pattern.options[:filter]})" if pattern.options && pattern.options[:filter] }
-
-
-
-
-
-
             buffer << '}'
           end
         end
