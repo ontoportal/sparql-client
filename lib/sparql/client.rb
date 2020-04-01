@@ -485,9 +485,6 @@ module SPARQL
           if options[:cache_key]
             query_put_cache(options[:cache_key],result_data)
           end
-
-          # binding.pry if response.body == "{\"head\":{\"vars\":[\"g\", \"c\"]},\"results\":{\"bindings\":[\n {\"c\":{\"type\":\"literal\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#integer\", \"value\":\"0\"}}]}}"
-          # binding.pry if response.body == "{\"head\":{\"vars\":[\"g\",\"c\"]},\n \"results\": {\n  \"bindings\":[]\n }}\n"
           return result_data
         when RESULT_XML
           #self.class.parse_xml_nokiri(response.body, nodes)
