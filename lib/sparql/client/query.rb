@@ -420,19 +420,8 @@ module SPARQL; class Client
           options[:optionals].each do |patterns|
             buffer << 'OPTIONAL {'
             buffer += serialize_patterns(patterns)
-
-
-
-
-
-
-            # buffer += patterns.map { |pattern| "FILTER(#{pattern.options[:filter]})" if pattern.options && pattern.options[:filter] }
-
-
-
-
-
-
+            # This is added to move the filters into the OPTIONAL clauses for AG compatibility
+            buffer += patterns.map { |pattern| "FILTER(#{pattern.options[:filter]})" if pattern.options && pattern.options[:filter] }
             buffer << '}'
           end
         end
