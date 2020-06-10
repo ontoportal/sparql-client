@@ -9,3 +9,6 @@ pkg
 tmp
 
 *.swp
+
+# rbenv
+.ruby-version
