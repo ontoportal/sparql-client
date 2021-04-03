@@ -312,6 +312,11 @@ module SPARQL
       end
       @op = :query
       qstart = Time.now
+      # pat = /submissionStatus/
+      # if query && (query.to_s =~ pat) != nil
+      #   @logger.info("#{query.to_s}")
+      #   @logger.info(caller.join("\n\t"))
+      # end
       r = response(query, options)
       query_time = Time.now - qstart
       pstart = Time.now
