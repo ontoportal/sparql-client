@@ -442,16 +442,15 @@ module SPARQL; class Client
           end
         end
         if options[:unions_with_bind]
-          include_union = nil
-          options[:unions_with_bind].each do |union_block, value_bind, var_bind|
-            buffer << include_union if include_union
-            buffer << '{'
-            buffer += serialize_patterns(union_block)
-            buffer << "BIND (\"#{value_bind}\" as ?#{var_bind.to_s})"
-            buffer << '}'
-            include_union = "UNION "
-          end
+          buffer <<  add_union_with_bind(options[:unions_with_bind])
         end
+
+        if options[:optional_unions_with_bind] && !options[:optional_unions_with_bind].empty?
+          buffer << 'OPTIONAL {'
+          buffer <<  add_union_with_bind(options[:optional_unions_with_bind])
+          buffer << '}'
+        end
+
         if options[:optionals]
           options[:optionals].each do |patterns|
             buffer << 'OPTIONAL {'
