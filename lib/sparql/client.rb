@@ -356,7 +356,7 @@ module SPARQL
     def update(query, options = {})
       @op = :update
       options[:op] = :update
-      if @redis_cache && !query.options[:bypass_cache]
+      if @redis_cache && query.respond_to?(:options) && !query.options[:bypass_cache]
         query_delete_cache(query) 
       end
       case @url
